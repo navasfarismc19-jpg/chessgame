@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Chess AI</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- jQuery (Required for chessboard.js) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Chessboard.js CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+    
+    <style>
+        body {
+            background-color: #0f172a; /* Tailwind slate-900 */
+            color: #f8fafc; /* Tailwind slate-50 */
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7); /* slate-800 */
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Customize chessboard default styling */
+        .white-1e1d7 { background-color: #e2e8f0; color: #475569; }
+        .black-3c85d { background-color: #64748b; color: #f8fafc; }
+        
+        /* Highlight for last move */
+        .highlight-white { box-shadow: inset 0 0 3px 3px rgba(234, 179, 8, 0.5); }
+        .highlight-black { box-shadow: inset 0 0 3px 3px rgba(234, 179, 8, 0.5); }
+
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1em;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-10 px-4">
+
+    <div class="max-w-5xl w-full flex flex-col lg:flex-row gap-8 items-start justify-center">
+        
+        <!-- Left Column: Board -->
+        <div class="glass-panel p-4 md:p-6 rounded-2xl w-full max-w-[500px] flex-shrink-0 mx-auto">
+            <h1 class="text-3xl font-bold mb-4 text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
+                Grandmaster JS
+            </h1>
+            
+            <div class="mb-4 text-center">
+                <p id="game-status" class="text-lg font-semibold text-emerald-400">White to move</p>
+            </div>
+
+            <!-- Chessboard Container -->
+            <div id="board" class="w-full"></div>
+        </div>
+
+        <!-- Right Column: Controls -->
+        <div class="glass-panel p-6 rounded-2xl w-full max-w-[400px] flex flex-col gap-6 mx-auto">
+            <h2 class="text-xl font-bold border-b border-slate-600 pb-2">Game Controls</h2>
+            
+            <!-- Game Mode -->
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Game Mode</label>
+                <select id="game-mode" class="w-full bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                    <option value="ai">Player vs Computer</option>
+                    <option value="local">Two-Player (Local)</option>
+                </select>
+            </div>
+
+            <!-- Difficulty -->
+            <div id="difficulty-container">
+                <label class="block text-sm font-medium text-slate-300 mb-2">AI Difficulty</label>
+                <select id="difficulty" class="w-full bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                    <option value="1">Easy (Fast)</option>
+                    <option value="2" selected>Medium</option>
+                    <option value="3">Hard (Slower)</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mt-4">
+                <!-- Undo Button -->
+                <button id="undo-btn" class="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 px-4 rounded-lg transition shadow-lg border border-slate-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+                    Undo
+                </button>
+
+                <!-- Reset Button -->
+                <button id="reset-btn" class="flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-semibold py-3 px-4 rounded-lg transition shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    Reset
+                </button>
+            </div>
+            
+            <div class="mt-4 text-sm text-slate-400 bg-slate-800 p-4 rounded-lg border border-slate-700">
+                <p id="evaluation-text" class="text-center font-mono">Eval: 0.0</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chessboard.js and Chess.js -->
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+
+    <script>
+        var board = null;
+        var game = new Chess();
+        var isAiThinking = false;
+
+        // UI Elements
+        var $status = $('#game-status');
+        var $eval = $('#evaluation-text');
+        var gameModeSelect = document.getElementById('game-mode');
+        var difficultySelect = document.getElementById('difficulty');
+        var difficultyContainer = document.getElementById('difficulty-container');
+
+        // Piece values for Evaluation
+        const pieceValues = { p: 10, n: 30, b: 30, r: 50, q: 90, k: 900 };
+
+        // Position specific evaluations (Piece-Square Tables)
+        // Values from standard simplified evaluation functions
+        const pst = {
+            p: [
+                [0,  0,  0,  0,  0,  0,  0,  0],
+                [5,  5,  5,  5,  5,  5,  5,  5],
+                [1,  1,  2,  3,  3,  2,  1,  1],
+                [0.5,0.5,1, 2.5,2.5, 1, 0.5,0.5],
+                [0,  0,  0,  2,  2,  0,  0,  0],
+                [0.5,-0.5,-1,0,  0,-1, -0.5,0.5],
+                [0.5, 1, 1,  -2,-2,  1,  1,  0.5],
+                [0,  0,  0,  0,  0,  0,  0,  0]
+            ],
+            n: [
+                [-5, -4, -3, -3, -3, -3, -4, -5],
+                [-4, -2,  0,  0,  0,  0, -2, -4],
+                [-3,  0,  1, 1.5,1.5, 1,  0, -3],
+                [-3, 0.5,1.5, 2,  2, 1.5,0.5,-3],
+                [-3,  0, 1.5, 2,  2, 1.5, 0, -3],
+                [-3, 0.5, 1, 1.5,1.5, 1, 0.5,-3],
+                [-4, -2,  0, 0.5,0.5, 0, -2, -4],
+                [-5, -4, -3, -3, -3, -3, -4, -5]
+            ],
+            b: [
+                [-2, -1, -1, -1, -1, -1, -1, -2],
+                [-1,  0,  0,  0,  0,  0,  0, -1],
+                [-1,  0, 0.5, 1,  1, 0.5, 0, -1],
+                [-1, 0.5, 0.5, 1,  1, 0.5,0.5,-1],
+                [-1,  0,  1,  1,  1,  1,  0, -1],
+                [-1,  1,  1,  1,  1,  1,  1, -1],
+                [-1, 0.5, 0,  0,  0,  0, 0.5,-1],
+                [-2, -1, -1, -1, -1, -1, -1, -2]
+            ]
+        };
+
+        // AI Logic
+        function evaluateBoard(gameObj) {
+            let totalEval = 0;
+            const boardMap = gameObj.board();
+            
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    let piece = boardMap[i][j];
+                    if (piece) {
+                        // Calculate piece base value
+                        let val = pieceValues[piece.type];
+                        
+                        // Add positional value for Pawns, Knights, Bishops
+                        if (pst[piece.type]) {
+                            // Adjust index based on color (White evaluates top down, Black bottom up)
+                            let x = piece.color === 'w' ? i : 7 - i;
+                            val += pst[piece.type][x][j];
+                        }
+
+                        totalEval += piece.color === 'w' ? val : -val;
+                    }
+                }
+            }
+            return totalEval; // Positive is good for White, Negative is good for Black
+        }
+
+        function minimax(gameObj, depth, alpha, beta, isMaximizingPlayer) {
+            if (depth === 0 || gameObj.game_over()) {
+                return evaluateBoard(gameObj);
+            }
+
+            let moves = gameObj.moves();
+            // Shuffle moves slightly to add variance and prevent repeating exactly identical games
+            moves.sort(() => Math.random() - 0.5);
+
+            if (isMaximizingPlayer) {
+                let bestVal = -Infinity;
+                for (let i = 0; i < moves.length; i++) {
+                    gameObj.move(moves[i]);
+                    let val = minimax(gameObj, depth - 1, alpha, beta, !isMaximizingPlayer);
+                    gameObj.undo();
+                    bestVal = Math.max(bestVal, val);
+                    alpha = Math.max(alpha, bestVal);
+                    if (beta <= alpha) break; // Prune
+                }
+                return bestVal;
+            } else {
+                let bestVal = Infinity;
+                for (let i = 0; i < moves.length; i++) {
+                    gameObj.move(moves[i]);
+                    let val = minimax(gameObj, depth - 1, alpha, beta, !isMaximizingPlayer);
+                    gameObj.undo();
+                    bestVal = Math.min(bestVal, val);
+                    beta = Math.min(beta, bestVal);
+                    if (beta <= alpha) break; // Prune
+                }
+                return bestVal;
+            }
+        }
+
+        function makeAiMove() {
+            if (game.game_over()) return;
+
+            isAiThinking = true;
+            $status.text("Computer is thinking...");
+            
+            // Allow UI to update before blocking main thread
+            setTimeout(() => {
+                let depth = parseInt(difficultySelect.value);
+                let moves = game.moves();
+                
+                if (moves.length === 0) return;
+
+                let bestMove = null;
+                // AI plays Black, so it wants to MINIMIZE the evaluation score
+                let bestVal = Infinity; 
+
+                // Shuffle root moves to add variety
+                moves.sort(() => Math.random() - 0.5);
+
+                for (let i = 0; i < moves.length; i++) {
+                    game.move(moves[i]);
+                    // Evaluate from depth-1, next turn is White (Maximizing)
+                    let boardVal = minimax(game, depth - 1, -Infinity, Infinity, true); 
+                    game.undo();
+
+                    if (boardVal < bestVal) {
+                        bestVal = boardVal;
+                        bestMove = moves[i];
+                    }
+                }
+
+                if (!bestMove) {
+                    bestMove = moves[Math.floor(Math.random() * moves.length)];
+                }
+
+                game.move(bestMove);
+                board.position(game.fen());
+                
+                // Update eval UI text (relative to White)
+                $eval.text(`Eval: ${bestVal === Infinity ? "0.0" : (-bestVal).toFixed(1)}`);
+                
+                isAiThinking = false;
+                updateStatus();
+            }, 10); // Small delay to unfreeze UI
+        }
+
+        function onDragStart(source, piece, position, orientation) {
+            // Do not pick up pieces if the game is over
+            if (game.game_over()) return false;
+
+            // Only pick up pieces for the side to move
+            if ((game.turn() === 'w' && piece.search(/^b/) !== -1) ||
+                (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
+                return false;
+            }
+
+            // If vs AI mode, don't let human drag black pieces
+            if (gameModeSelect.value === 'ai' && piece.search(/^b/) !== -1) {
+                return false;
+            }
+
+            // Prevent moves while AI is computing
+            if (isAiThinking) return false;
+        }
+
+        function onDrop(source, target) {
+            // see if the move is legal
+            var move = game.move({
+                from: source,
+                to: target,
+                promotion: 'q' // NOTE: always promote to a queen for simplicity
+            });
+
+            // illegal move
+            if (move === null) return 'snapback';
+
+            updateStatus();
+
+            // Trigger AI move if game mode is AI
+            if (gameModeSelect.value === 'ai' && !game.game_over()) {
+                window.setTimeout(makeAiMove, 250);
+            }
+        }
+
+        // Update the board position after the piece snap
+        // for castling, en passant, pawn promotion
+        function onSnapEnd() {
+            board.position(game.fen());
+        }
+
+        function updateStatus() {
+            var statusHTML = '';
+            var moveColor = (game.turn() === 'w') ? 'White' : 'Black';
+
+            // Checkmate
+            if (game.in_checkmate()) {
+                statusHTML = `<span class="text-red-500 font-bold">Game over, ${moveColor} is in checkmate.</span>`;
+            }
+            // Draw
+            else if (game.in_draw()) {
+                statusHTML = '<span class="text-yellow-400 font-bold">Game over, drawn position.</span>';
+            }
+            // Game still on
+            else {
+                statusHTML = `${moveColor} to move`;
+                if (game.in_check()) {
+                    statusHTML += ' <span class="text-orange-400 font-bold">(Check)</span>';
+                }
+            }
+
+            $status.html(statusHTML);
+            
+            if(!isAiThinking) {
+                 // Simple eval update on human turn
+                 let currentEval = evaluateBoard(game);
+                 $eval.text(`Eval: ${currentEval.toFixed(1)}`);
+            }
+        }
+
+        function resetGame() {
+            game.reset();
+            board.start();
+            isAiThinking = false;
+            updateStatus();
+            $eval.text("Eval: 0.0");
+        }
+
+        function undoMove() {
+            if (isAiThinking || game.history().length === 0) return;
+
+            if (gameModeSelect.value === 'ai') {
+                // Undo twice to go back to player's turn
+                game.undo();
+                game.undo();
+            } else {
+                // Undo once in local multi-player
+                game.undo();
+            }
+
+            board.position(game.fen());
+            updateStatus();
+        }
+
+        // Event Listeners
+        document.getElementById('reset-btn').addEventListener('click', resetGame);
+        document.getElementById('undo-btn').addEventListener('click', undoMove);
+        
+        gameModeSelect.addEventListener('change', function() {
+            if (this.value === 'local') {
+                difficultyContainer.style.opacity = '0.5';
+                difficultyContainer.style.pointerEvents = 'none';
+            } else {
+                difficultyContainer.style.opacity = '1';
+                difficultyContainer.style.pointerEvents = 'auto';
+            }
+            resetGame();
+        });
+
+        // Initialize Board
+        var config = {
+            draggable: true,
+            position: 'start',
+            onDragStart: onDragStart,
+            onDrop: onDrop,
+            onSnapEnd: onSnapEnd,
+            pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+        };
+        
+        // Wait for page to fully load to initialize board
+        $(document).ready(function() {
+            board = Chessboard('board', config);
+            updateStatus();
+
+            // Resize board on window resize for responsiveness
+            $(window).resize(function() {
+                if(board) board.resize();
+            });
+        });
+
+    </script>
+</body>
+</html>
